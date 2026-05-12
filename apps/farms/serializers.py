@@ -119,7 +119,7 @@ class FarmNoteSerializer(serializers.ModelSerializer):
         validated_data['created_by'] = self.context['request'].user
         return super().create(validated_data)
     
-class FarmStatisticsSerializer(serializers.ModelSerializer):
+class FarmStatsSerializer(serializers.ModelSerializer):
     
     total_farms = serializers.IntegerField()
     active_farms = serializers.IntegerField()
