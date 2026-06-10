@@ -232,4 +232,35 @@ class AnimalHealthRecord (models.Model):
     def __str__(self):
         return f"{self.animal.tag_number} - {self.get_record_type_display()} - {self.date}"
     
+
+class AnimalWeightLog(models.Model):
+    """
+    Model for tracking animal weight over time.
+    """
+    
+    animal = models.ForeignKey(Animal, on_delete=models.CASCADE, related_name='weight_log', verbose_name=_('animal'))
+    date = models.DateField(_('date'), default=timezone.now)
+    weight = models.DecimalField(_('weight (kg)'), max_digits=6, decimal_places=2, validators=[MinValueValidator(0)])
+    notes = models.TextField(_('notes'), blank=True, null=True)
+    recorded_by = models.ForeignKey('accounts.User', on_delete=models.SET_NULL, blank=True, null=True, related_name='recorded_weight_logs', verbose_name=_('recorded by'))
+    created_at = models.DateTimeField(_('created at'), auto_now_add=True)
+    
+    class Meta:
+        verbose_name = _('animal weight log')
+        verbose_name_plural = _('animal weight logs')
+        ordering = ['-date', '-created_at']
+        unique_together = ['animal', 'date']
+        indexes = [
+            models.Index(fields=['animal']),
+            models.Index(fields=['date']),
+        ]
+        
+    def __str__(self):
+        return f"{self.animal.tag_number} - {self.weight}kg on {self.date}"
+    
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        # Update current weight in Animal model
+        self.animal.current_weight = self.weight
+        self.animal.save(update_fields=['current_weight'])
     
