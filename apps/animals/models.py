@@ -67,7 +67,7 @@ class Animal(models.Model):
     
     # birth details
     date_of_birth = models.DateField(_('Date of Birth'), blank=True, null=True)
-    birth_weight = models.FloatField(_('Birth Weight (kg)'), max_digits=6, decimal_places=2, blank=True, null=True)
+    birth_weight = models.DecimalField(_('Birth Weight (kg)'), max_digits=6, decimal_places=2, blank=True, null=True)
     
     # parentage
     mother = models.ForeignKey('self', on_delete=models.SET_NULL, blank=True, null=True, related_name='offspring_as_mother', verbose_name=_('mother'), limit_choices_to={'gender': 'female'})
@@ -75,8 +75,8 @@ class Animal(models.Model):
 
     # physical characteristics
     color = models.CharField(_('color/markings'), max_length=100, blank=True, null=True)
-    current_weight = models.FloatField(_('Current Weight (kg)'), max_digits=6, decimal_places=2, blank=True, null=True)
-    height = models.FloatField(_('Height (cm)'), max_digits=6, decimal_places=2, blank=True, null=True)
+    current_weight = models.DecimalField(_('Current Weight (kg)'), max_digits=6, decimal_places=2, blank=True, null=True)
+    height = models.DecimalField(_('Height (cm)'), max_digits=6, decimal_places=2, blank=True, null=True)
     status = models.CharField(_('status'), max_length=20, choices=STATUS_CHOICES, default='active')
     is_active = models.BooleanField(_('is active'), default=True)
     
