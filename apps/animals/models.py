@@ -373,3 +373,30 @@ class CalvingRecord(models.Model):
         if self.breeding:
             self.breeding.actual_calving_date = self.calving_date
             self.breeding.save(update_fields=['actual_calving_date'])
+            
+
+class AnimalNote(models.Model):
+    """
+    Model for animal notes/observations.
+    """
+    
+    animal = models.ForeignKey(Animal, on_delete=models.CASCADE, related_name='notes', verbose_name=_('animal'))
+    title = models.CharField(_('title'), max_length=255)
+    content = models.TextField(_('content'))
+    is_important = models.BooleanField(_('is important'), default=False)
+    created_by = models.ForeignKey('accounts.User', on_delete=models.CASCADE, related_name='created_animal_notes', verbose_name=_('created by'))
+    created_at = models.DateTimeField(_('created at'), auto_now_add=True)
+    updated_at = models.DateTimeField(_('updated at'), auto_now=True)
+    
+    class Meta:
+        verbose_name = _('animal note')
+        verbose_name_plural = _('animal notes')
+        ordering = ['is_important', '-created_at']
+        indexes = [
+            models.Index(fields=['animal']),
+            models.Index(fields=['created_at']),
+        ]
+        
+    def __str__(self):
+        return f"Note for {self.animal.tag_number} - {self.title}"
+    
