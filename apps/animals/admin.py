@@ -88,3 +88,18 @@ class AnimalWeightLogAdmin(admin.ModelAdmin):
     search_fields = ['animal__tag_number']
     list_select_related = ['animal', 'recorded_by']
     date_hierarchy = 'date'
+    
+
+@admin.register(BreedingRecord)
+class BreedingRecordAdmin(admin.ModelAdmin):
+    """
+    Admin configuration for BreedingRecord model.
+    """
+    
+    list_display = [
+        'female', 'male', 'breeding_date', 'method', 'status', 'farm'
+    ]
+    list_filter = ['method', 'status', 'breeding_date']
+    search_fields = ['female__tag_number', 'male__tag_number']
+    list_select_related = ['female', 'male', 'farm']
+    date_hierarchy = 'breeding_date'
