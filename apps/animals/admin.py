@@ -120,7 +120,7 @@ class CalvingRecordAdmin(admin.ModelAdmin):
     date_hierarchy = 'calving_date'
     
     
-    @admin.register(AnimalNote)
+@admin.register(AnimalNote)
 class AnimalNoteAdmin(admin.ModelAdmin):
     """
     Admin configuration for AnimalNote model.
