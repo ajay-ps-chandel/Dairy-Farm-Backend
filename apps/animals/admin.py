@@ -103,3 +103,18 @@ class BreedingRecordAdmin(admin.ModelAdmin):
     search_fields = ['female__tag_number', 'male__tag_number']
     list_select_related = ['female', 'male', 'farm']
     date_hierarchy = 'breeding_date'
+    
+    
+@admin.register(CalvingRecord)
+class CalvingRecordAdmin(admin.ModelAdmin):
+    """
+    Admin configuration for CalvingRecord model.
+    """
+    
+    list_display = [
+        'mother', 'calving_date', 'calving_type', 'calf_gender', 'farm'
+    ]
+    list_filter = ['calving_type', 'calf_gender', 'calving_date']
+    search_fields = ['mother__tag_number', 'calf_tag_number']
+    list_select_related = ['mother', 'farm']
+    date_hierarchy = 'calving_date'
