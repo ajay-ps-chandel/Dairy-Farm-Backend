@@ -68,3 +68,12 @@ class AnimalAdmin(admin.ModelAdmin):
     mark_as_lactating.short_description = 'Mark selected females as lactating'
 
 
+@admin.register(AnimalHealthRecord)
+class AnimalHealthRecordAdmin(admin.ModelAdmin):
+    """Admin configuration for AnimalHealthRecord model.
+    """
+    
+    list_display = ['animal', 'record_type', 'date', 'veterinarian_name', 'cost']
+    list_filter = [ 'record_type','date']
+    search_fields = ['animal__tag_number', 'description']
+    date_hierarchy = 'date'
