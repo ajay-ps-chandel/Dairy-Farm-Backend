@@ -230,3 +230,35 @@ class AnimalStatsSerializer(serializers.Serializer):
     calf_count = serializers.IntegerField()
     recent_additions = serializers.IntegerField()
     recent_sales = serializers.IntegerField()
+    
+    
+class AnimalPedigreeSerializer(serializers.ModelSerializer):
+    """
+    Serializer for animal pedigree information.
+    """
+    age = serializers.DictField(read_only=True)
+    offspring = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = Animal
+        fields = [
+            'id', 'tag_number', 'name', 'species', 'breed',
+            'gender', 'date_of_birth', 'age',
+            'mother', 'father', 'offspring'
+        ]
+    
+    def get_offspring(self, obj):
+        if obj.gender == 'female':
+            offspring = obj.offspring_as_mother.all()
+        else:
+            offspring = obj.offspring_as_father.all()
+        return [
+            {
+                'id': child.id,
+                'tag_number': child.tag_number,
+                'name': child.name,
+                'gender': child.gender,
+                'date_of_birth': child.date_of_birth
+            }
+            for child in offspring[:10]
+        ]
