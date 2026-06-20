@@ -157,4 +157,29 @@ class AnimalHealthRecordDetailView(generics.RetrieveUpdateDestroyAPIView):
     queryset = AnimalHealthRecord.objects.all()
     
     
+class AnimalWeightLogListView(generics.ListCreateAPIView):
+    """
+    API endpoint for listing and creating weight logs.
+    """
+    serializer_class = AnimalWeightLogSerializer
+    permission_classes = [permissions.IsAuthenticated, IsFarmMember]
+    
+    def get_queryset(self):
+        animal_id = self.kwargs.get('animal_pk')
+        return AnimalWeightLog.objects.filter(animal_id=animal_id).order_by('-date')
+    
+    def perform_create(self, serializer):
+        animal = get_object_or_404(Animal, pk=self.kwargs['animal_pk'])
+        self.check_object_permissions(self.request, animal)
+        serializer.save(animal=animal)
+        
 
+class AnimalWeightLogDetailView(generics.RetrieveUpdateDestroyAPIView):
+    """
+    API endpoint for retrieving, updating and deleting weight logs.
+    """
+    serializer_class = AnimalWeightLogSerializer
+    permission_classes = [permissions.IsAuthenticated, IsFarmMember]
+    queryset = AnimalWeightLog.objects.all()
+    
+    
