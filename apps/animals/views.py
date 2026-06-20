@@ -131,4 +131,30 @@ class AnimalDeleteView(generics.DestroyAPIView):
         instance.save()
         
         
+class AnimalHealthRecordListView(generics.ListCreateAPIView):
+    """
+    API endpoint for listing and creating health records.
+    """
+    serializer_class = AnimalHealthRecordSerializer
+    permission_classes = [permissions.IsAuthenticated, IsFarmMember]
+    
+    def get_queryset(self):
+        animal_id = self.kwargs.get('animal_pk')
+        return AnimalHealthRecord.objects.filter(animal_id=animal_id).order_by('-date')
+    
+    def perform_create(self, serializer):
+        animal = get_object_or_404(Animal, pk=self.kwargs['animal_pk'])
+        self.check_object_permissions(self.request, animal)
+        serializer.save(animal=animal)
+
+
+class AnimalHealthRecordDetailView(generics.RetrieveUpdateDestroyAPIView):
+    """
+    API endpoint for retrieving, updating and deleting health records.
+    """
+    serializer_class = AnimalHealthRecordSerializer
+    permission_classes = [permissions.IsAuthenticated, IsFarmMember]
+    queryset = AnimalHealthRecord.objects.all()
+    
+    
 
