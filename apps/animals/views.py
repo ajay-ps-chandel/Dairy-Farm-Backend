@@ -257,3 +257,36 @@ class CalvingRecordDetailView(generics.RetrieveUpdateDestroyAPIView):
     queryset = CalvingRecord.objects.all()
     
     
+class AnimalNoteListView(generics.ListCreateAPIView):
+    """
+    API endpoint for listing and creating animal notes.
+    """
+    serializer_class = AnimalNoteSerializer
+    permission_classes = [permissions.IsAuthenticated, IsFarmMember]
+    
+    def get_queryset(self):
+        animal_id = self.kwargs.get('animal_pk')
+        queryset = AnimalNote.objects.filter(animal_id=animal_id)
+        
+        # Filter by importance
+        important_only = self.request.query_params.get('important')
+        if important_only:
+            queryset = queryset.filter(is_important=True)
+        
+        return queryset.order_by('-is_important', '-created_at')
+    
+    def perform_create(self, serializer):
+        animal = get_object_or_404(Animal, pk=self.kwargs['animal_pk'])
+        self.check_object_permissions(self.request, animal)
+        serializer.save(animal=animal)
+
+
+class AnimalNoteDetailView(generics.RetrieveUpdateDestroyAPIView):
+    """
+    API endpoint for retrieving, updating and deleting animal notes.
+    """
+    serializer_class = AnimalNoteSerializer
+    permission_classes = [permissions.IsAuthenticated, IsFarmMember]
+    queryset = AnimalNote.objects.all()
+    
+    
