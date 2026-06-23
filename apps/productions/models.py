@@ -72,4 +72,47 @@ class MilkProductionLog(models.Model):
                 pass
         
         super().save(*args, **kwargs)
+        
+        
+class MilkProductionSummary(models.Model):
+    """
+    Model for summarizing milk production over a period.
+    """
+    farm = models.ForeignKey('farms.Farm', on_delete=models.CASCADE, related_name='daily_summaries', verbose_name=_('farm'))
+    date = models.DateField(_('date'))
+    
+    # Aggregate fields
+    total_quantity = models.DecimalField(_('total quantity (liters)'), max_digits=15, decimal_places=2, validators=[MinValueValidator(0)], default=0)
+    total_animals_milked = models.PositiveIntegerField(_('total animals milked'), default=0)
+    average_quantity_per_animal = models.DecimalField(_('average quantity per animal'), max_digits=10, decimal_places=2, default=0)
+    
+    # Session-wise quantities
+    morning_quantity = models.DecimalField(_('morning quantity (liters)'), max_digits=15, decimal_places=2, validators=[MinValueValidator(0)], default=0)
+    afternoon_quantity = models.DecimalField(_('afternoon quantity (liters)'), max_digits=15, decimal_places=2, validators=[MinValueValidator(0)], default=0)
+    evening_quantity = models.DecimalField(_('evening quantity (liters)'), max_digits=15, decimal_places=2, validators=[MinValueValidator(0)], default=0)
+    
+    # Average quality metrics
+    average_fat = models.DecimalField(_('average fat percentage'), max_digits=5, decimal_places=2, validators=[MinValueValidator(0)], null=True, blank=True)
+    average_snf = models.DecimalField(_('average SNF percentage'), max_digits=5, decimal_places=2, validators=[MinValueValidator(0)], null=True, blank=True)
+    
+    # Financial summary fields
+    total_value = models.DecimalField(_('total value'), max_digits=20, decimal_places=2, validators=[MinValueValidator(0)], default=0)
+    average_price_per_liter = models.DecimalField(_('average price per liter'), max_digits=10, decimal_places=2, validators=[MinValueValidator(0)], default=0)
+    
+    created_at = models.DateTimeField(_('created at'), auto_now_add=True)
+    updated_at = models.DateTimeField(_('updated at'), auto_now=True)
+    
+    class Meta:
+        verbose_name = _('milk production summary')
+        verbose_name_plural = _('milk production summaries')
+        ordering = ['-date']
+        indexes = [
+            models.Index(fields=['farm', 'date']),
+        ]
+        
+    def __str__(self):
+        return f"{self.farm.name} - {self.date} - {self.total_quantity}L"
+
+
+
 
