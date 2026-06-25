@@ -105,3 +105,48 @@ class AnimalProductionSummarySerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'created_at', 'updated_at']
         
         
+class MilkSaleSerializer(serializers.ModelSerializer):
+    """
+    Serializer for milk sales.
+    """
+    sale_type_display = serializers.CharField(source='get_sale_type_display', read_only=True)
+    payment_status_display = serializers.CharField(source='get_payment_status_display', read_only=True)
+    farm_name = serializers.CharField(source='farm.name', read_only=True)
+    recorded_by_name = serializers.CharField(source='recorded_by.full_name', read_only=True)
+    balance_due = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
+    
+    class Meta:
+        model = MilkSale
+        fields = [
+            'id', 'farm', 'farm_name', 'date', 'sale_type', 'sale_type_display',
+            'buyer_name', 'buyer_contact', 'buyer_address',
+            'quantity', 'price_per_liter', 'total_amount',
+            'fat_percentage', 'snf_percentage',
+            'payment_status', 'payment_status_display',
+            'amount_paid', 'payment_date', 'payment_method',
+            'balance_due', 'notes',
+            'recorded_by', 'recorded_by_name', 'created_at', 'updated_at'
+        ]
+        read_only_fields = ['id', 'total_amount', 'created_at', 'updated_at', 'recorded_by']
+    
+    def create(self, validated_data):
+        validated_data['recorded_by'] = self.context['request'].user
+        return super().create(validated_data)
+
+
+class MilkSaleUpdateSerializer(serializers.ModelSerializer):
+    """
+    Serializer for updating milk sales.
+    """
+    
+    class Meta:
+        model = MilkSale
+        fields = [
+            'buyer_name', 'buyer_contact', 'buyer_address',
+            'quantity', 'price_per_liter',
+            'fat_percentage', 'snf_percentage',
+            'payment_status', 'amount_paid', 'payment_date',
+            'payment_method', 'notes'
+        ]
+
+
