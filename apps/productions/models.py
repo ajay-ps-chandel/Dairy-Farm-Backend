@@ -74,7 +74,7 @@ class MilkProductionLog(models.Model):
         super().save(*args, **kwargs)
         
         
-class MilkProductionSummary(models.Model):
+class DailyProductionSummary(models.Model):
     """
     Model for summarizing milk production over a period.
     """
