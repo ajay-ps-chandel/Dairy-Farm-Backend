@@ -92,3 +92,47 @@ class MilkProductionLogDetailView(generics.RetrieveUpdateDestroyAPIView):
     queryset = MilkProductionLog.objects.all()
     
     
+class DailyProductionSummaryListView(generics.ListAPIView):
+    """
+    API endpoint for listing daily production summaries.
+    """
+    serializer_class = DailyProductionSummarySerializer
+    permission_classes = [permissions.IsAuthenticated, IsFarmMember]
+    
+    def get_queryset(self):
+        user = self.request.user
+        
+        if user.is_owner:
+            farm_ids = user.owned_farms.filter(is_active=True).values_list('id', flat=True)
+        else:
+            farm_ids = user.farm_memberships.filter(
+                is_active=True, status='active'
+            ).values_list('farm_id', flat=True)
+        
+        queryset = DailyProductionSummary.objects.filter(farm_id__in=farm_ids)
+        
+        # Filter by farm
+        farm_id = self.request.query_params.get('farm')
+        if farm_id:
+            queryset = queryset.filter(farm_id=farm_id)
+        
+        # Filter by date range
+        date_from = self.request.query_params.get('date_from')
+        date_to = self.request.query_params.get('date_to')
+        if date_from:
+            queryset = queryset.filter(date__gte=date_from)
+        if date_to:
+            queryset = queryset.filter(date__lte=date_to)
+        
+        return queryset.select_related('farm').order_by('-date')
+
+
+class DailyProductionSummaryDetailView(generics.RetrieveAPIView):
+    """
+    API endpoint for retrieving a daily production summary.
+    """
+    serializer_class = DailyProductionSummarySerializer
+    permission_classes = [permissions.IsAuthenticated, IsFarmMember]
+    queryset = DailyProductionSummary.objects.all()
+
+
