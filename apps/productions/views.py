@@ -136,3 +136,100 @@ class DailyProductionSummaryDetailView(generics.RetrieveAPIView):
     queryset = DailyProductionSummary.objects.all()
 
 
+class AnimalProductionSummaryListView(generics.ListAPIView):
+    """
+    API endpoint for listing animal production summaries.
+    """
+    serializer_class = AnimalProductionSummarySerializer
+    permission_classes = [permissions.IsAuthenticated, IsFarmMember]
+    
+    def get_queryset(self):
+        user = self.request.user
+        
+        if user.is_owner:
+            farm_ids = user.owned_farms.filter(is_active=True).values_list('id', flat=True)
+        else:
+            farm_ids = user.farm_memberships.filter(
+                is_active=True, status='active'
+            ).values_list('farm_id', flat=True)
+        
+        queryset = AnimalProductionSummary.objects.filter(farm_id__in=farm_ids)
+        
+        # Filter by farm
+        farm_id = self.request.query_params.get('farm')
+        if farm_id:
+            queryset = queryset.filter(farm_id=farm_id)
+        
+        # Filter by animal
+        animal_id = self.request.query_params.get('animal')
+        if animal_id:
+            queryset = queryset.filter(animal_id=animal_id)
+        
+        # Filter by period type
+        period_type = self.request.query_params.get('period_type')
+        if period_type:
+            queryset = queryset.filter(period_type=period_type)
+        
+        return queryset.select_related('animal', 'farm').order_by('-period_end')
+
+
+class MilkSaleListView(generics.ListCreateAPIView):
+    """
+    API endpoint for listing and creating milk sales.
+    """
+    serializer_class = MilkSaleSerializer
+    permission_classes = [permissions.IsAuthenticated, IsFarmMember]
+    
+    def get_queryset(self):
+        user = self.request.user
+        
+        if user.is_owner:
+            farm_ids = user.owned_farms.filter(is_active=True).values_list('id', flat=True)
+        else:
+            farm_ids = user.farm_memberships.filter(
+                is_active=True, status='active'
+            ).values_list('farm_id', flat=True)
+        
+        queryset = MilkSale.objects.filter(farm_id__in=farm_ids)
+        
+        # Filter by farm
+        farm_id = self.request.query_params.get('farm')
+        if farm_id:
+            queryset = queryset.filter(farm_id=farm_id)
+        
+        # Filter by payment status
+        payment_status = self.request.query_params.get('payment_status')
+        if payment_status:
+            queryset = queryset.filter(payment_status=payment_status)
+        
+        # Filter by date range
+        date_from = self.request.query_params.get('date_from')
+        date_to = self.request.query_params.get('date_to')
+        if date_from:
+            queryset = queryset.filter(date__gte=date_from)
+        if date_to:
+            queryset = queryset.filter(date__lte=date_to)
+        
+        # Search by buyer name
+        search = self.request.query_params.get('search')
+        if search:
+            queryset = queryset.filter(buyer_name__icontains=search)
+        
+        return queryset.select_related('farm', 'recorded_by').order_by('-date', '-created_at')
+    
+    def perform_create(self, serializer):
+        serializer.save(recorded_by=self.request.user)
+
+
+class MilkSaleDetailView(generics.RetrieveUpdateDestroyAPIView):
+    """
+    API endpoint for retrieving, updating and deleting milk sales.
+    """
+    permission_classes = [permissions.IsAuthenticated, IsFarmMember]
+    queryset = MilkSale.objects.all()
+    
+    def get_serializer_class(self):
+        if self.request.method in ['PUT', 'PATCH']:
+            return MilkSaleUpdateSerializer
+        return MilkSaleSerializer
+
