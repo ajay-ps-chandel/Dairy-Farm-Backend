@@ -329,3 +329,88 @@ def production_stats(request):
     
     return Response(data)
 
+
+@api_view(['GET'])
+@permission_classes([permissions.IsAuthenticated])
+def milk_sale_stats(request):
+    """
+    API endpoint for getting milk sale statistics.
+    """
+    user = request.user
+    farm_id = request.query_params.get('farm')
+    
+    # Get farms user has access to
+    if user.is_owner:
+        farm_ids = user.owned_farms.filter(is_active=True).values_list('id', flat=True)
+    else:
+        farm_ids = user.farm_memberships.filter(
+            is_active=True, status='active'
+        ).values_list('farm_id', flat=True)
+    
+    if farm_id:
+        farm_ids = [farm_id] if int(farm_id) in list(farm_ids) else []
+    
+    today = timezone.now().date()
+    week_start = today - timedelta(days=today.weekday())
+    month_start = today.replace(day=1)
+    
+    # Today's sales
+    today_sales = MilkSale.objects.filter(
+        farm_id__in=farm_ids,
+        date=today
+    ).aggregate(total=Sum('total_amount'))['total'] or 0
+    
+    # This week's sales
+    week_sales = MilkSale.objects.filter(
+        farm_id__in=farm_ids,
+        date__gte=week_start
+    ).aggregate(total=Sum('total_amount'))['total'] or 0
+    
+    # This month's sales
+    month_sales = MilkSale.objects.filter(
+        farm_id__in=farm_ids,
+        date__gte=month_start
+    ).aggregate(total=Sum('total_amount'))['total'] or 0
+    
+    # Quantity sold this month
+    month_quantity = MilkSale.objects.filter(
+        farm_id__in=farm_ids,
+        date__gte=month_start
+    ).aggregate(total=Sum('quantity'))['total'] or 0
+    
+    # Average price per liter
+    avg_price = MilkSale.objects.filter(
+        farm_id__in=farm_ids,
+        date__gte=month_start
+    ).aggregate(avg=Avg('price_per_liter'))['avg'] or 0
+    
+    # Pending payments
+    pending = MilkSale.objects.filter(
+        farm_id__in=farm_ids,
+        payment_status__in=['pending', 'partial']
+    ).aggregate(
+        total=Sum('total_amount') - Sum('amount_paid')
+    )
+    pending_payments = pending['total'] or 0
+    
+    # Top buyers
+    top_buyers = MilkSale.objects.filter(
+        farm_id__in=farm_ids,
+        date__gte=month_start
+    ).values('buyer_name').annotate(
+        total_quantity=Sum('quantity'),
+        total_amount=Sum('total_amount')
+    ).order_by('-total_amount')[:10]
+    
+    data = {
+        'total_sales_today': round(today_sales, 2),
+        'total_sales_this_week': round(week_sales, 2),
+        'total_sales_this_month': round(month_sales, 2),
+        'total_quantity_sold_this_month': round(month_quantity, 2),
+        'average_price_per_liter': round(avg_price, 2),
+        'pending_payments': round(pending_payments, 2),
+        'top_buyers': list(top_buyers),
+    }
+    
+    return Response(data)
+
