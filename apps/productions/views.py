@@ -233,3 +233,99 @@ class MilkSaleDetailView(generics.RetrieveUpdateDestroyAPIView):
             return MilkSaleUpdateSerializer
         return MilkSaleSerializer
 
+
+@api_view(['GET'])
+@permission_classes([permissions.IsAuthenticated])
+def production_stats(request):
+    """
+    API endpoint for getting production statistics.
+    """
+    user = request.user
+    farm_id = request.query_params.get('farm')
+    
+    # Get farms user has access to
+    if user.is_owner:
+        farm_ids = user.owned_farms.filter(is_active=True).values_list('id', flat=True)
+    else:
+        farm_ids = user.farm_memberships.filter(
+            is_active=True, status='active'
+        ).values_list('farm_id', flat=True)
+    
+    # Filter by specific farm if provided
+    if farm_id:
+        farm_ids = [farm_id] if int(farm_id) in list(farm_ids) else []
+    
+    today = timezone.now().date()
+    week_start = today - timedelta(days=today.weekday())
+    month_start = today.replace(day=1)
+    
+    # Today's production
+    today_production = MilkProductionLog.objects.filter(
+        farm_id__in=farm_ids,
+        date=today
+    ).aggregate(total=Sum('quantity'))['total'] or 0
+    
+    # This week's production
+    week_production = MilkProductionLog.objects.filter(
+        farm_id__in=farm_ids,
+        date__gte=week_start
+    ).aggregate(total=Sum('quantity'))['total'] or 0
+    
+    # This month's production
+    month_production = MilkProductionLog.objects.filter(
+        farm_id__in=farm_ids,
+        date__gte=month_start
+    ).aggregate(total=Sum('quantity'))['total'] or 0
+    
+    # Average daily production (last 30 days)
+    last_30_days = today - timedelta(days=30)
+    daily_avg = MilkProductionLog.objects.filter(
+        farm_id__in=farm_ids,
+        date__gte=last_30_days
+    ).values('date').annotate(daily_total=Sum('quantity')).aggregate(
+        avg=Avg('daily_total')
+    )['avg'] or 0
+    
+    # Animals in production (lactating females)
+    animals_in_production = Animal.objects.filter(
+        farm_id__in=farm_ids,
+        gender='female',
+        status='lactating',
+        is_active=True
+    ).count()
+    
+    # Average per animal
+    avg_per_animal = (
+        today_production / animals_in_production
+        if animals_in_production > 0 else 0
+    )
+    
+    # Top producers (last 7 days)
+    last_7_days = today - timedelta(days=7)
+    top_producers = MilkProductionLog.objects.filter(
+        farm_id__in=farm_ids,
+        date__gte=last_7_days
+    ).values('animal__tag_number', 'animal__name').annotate(
+        total=Sum('quantity')
+    ).order_by('-total')[:10]
+    
+    # Production trend (last 14 days)
+    last_14_days = today - timedelta(days=14)
+    trend = MilkProductionLog.objects.filter(
+        farm_id__in=farm_ids,
+        date__gte=last_14_days
+    ).values('date').annotate(total=Sum('quantity')).order_by('date')
+    
+    data = {
+        'total_production_today': round(today_production, 2),
+        'total_production_this_week': round(week_production, 2),
+        'total_production_this_month': round(month_production, 2),
+        'average_daily_production': round(daily_avg, 2),
+        'total_animals_in_production': animals_in_production,
+        'average_per_animal': round(avg_per_animal, 2),
+        'top_producers': list(top_producers),
+        'production_trend': list(trend),
+    }
+    
+    return Response(data)
+
