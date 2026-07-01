@@ -414,3 +414,90 @@ def milk_sale_stats(request):
     
     return Response(data)
 
+
+@api_view(['POST'])
+@permission_classes([permissions.IsAuthenticated, CanLogProduction])
+def bulk_create_production_logs(request):
+    """
+    API endpoint for bulk creating production logs.
+    """
+    data = request.data
+    farm_id = data.get('farm')
+    date = data.get('date')
+    session = data.get('session')
+    records = data.get('records', [])
+    
+    farm = get_object_or_404(Farm, pk=farm_id)
+    
+    created_logs = []
+    errors = []
+    
+    for record in records:
+        try:
+            animal_id = record.get('animal_id')
+            quantity = record.get('quantity')
+            
+            animal = get_object_or_404(Animal, pk=animal_id, farm=farm)
+            
+            log = MilkProductionLog.objects.create(
+                animal=animal,
+                farm=farm,
+                date=date,
+                session=session,
+                quantity=quantity,
+                recorded_by=request.user
+            )
+            created_logs.append(log.id)
+        except Exception as e:
+            errors.append({'animal_id': animal_id, 'error': str(e)})
+    
+    return Response({
+        'created': len(created_logs),
+        'log_ids': created_logs,
+        'errors': errors
+    })
+
+
+@api_view(['GET'])
+@permission_classes([permissions.IsAuthenticated, IsFarmMember])
+def animal_production_history(request, animal_pk):
+    """
+    API endpoint for getting an animal's production history.
+    """
+    animal = get_object_or_404(Animal, pk=animal_pk)
+    
+    # Get date range
+    days = int(request.query_params.get('days', 30))
+    date_from = timezone.now().date() - timedelta(days=days)
+    
+    logs = MilkProductionLog.objects.filter(
+        animal=animal,
+        date__gte=date_from
+    ).order_by('date', 'session')
+    
+    data = [
+        {
+            'date': log.date,
+            'session': log.get_session_display(),
+            'quantity': log.quantity,
+            'quality': log.get_quality_display(),
+            'fat_percentage': log.fat_percentage,
+            'snf_percentage': log.snf_percentage,
+        }
+        for log in logs
+    ]
+    
+    # Calculate totals
+    total_quantity = sum(log['quantity'] for log in data)
+    avg_per_day = total_quantity / days if days > 0 else 0
+    
+    return Response({
+        'animal_tag': animal.tag_number,
+        'animal_name': animal.name,
+        'period_days': days,
+        'total_quantity': round(total_quantity, 2),
+        'average_per_day': round(avg_per_day, 2),
+        'production_logs': data
+    })
+
+
