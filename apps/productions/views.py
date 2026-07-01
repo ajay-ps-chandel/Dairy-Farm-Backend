@@ -501,3 +501,39 @@ def animal_production_history(request, animal_pk):
     })
 
 
+@api_view(['POST'])
+@permission_classes([permissions.IsAuthenticated, IsOwner])
+def record_payment(request, pk):
+    """
+    API endpoint for recording a payment for a milk sale.
+    """
+    sale = get_object_or_404(MilkSale, pk=pk)
+    
+    amount = request.data.get('amount')
+    payment_date = request.data.get('payment_date', timezone.now().date())
+    payment_method = request.data.get('payment_method', '')
+    
+    if not amount:
+        return Response(
+            {'error': 'Amount is required.'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    amount = float(amount)
+    sale.amount_paid += amount
+    
+    if sale.amount_paid >= sale.total_amount:
+        sale.payment_status = 'paid'
+        sale.payment_date = payment_date
+    else:
+        sale.payment_status = 'partial'
+    
+    sale.payment_method = payment_method
+    sale.save()
+    
+    return Response({
+        'message': 'Payment recorded successfully.',
+        'amount_paid': sale.amount_paid,
+        'balance_due': sale.balance_due,
+        'payment_status': sale.payment_status
+    })
