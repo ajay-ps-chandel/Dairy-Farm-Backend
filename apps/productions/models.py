@@ -190,7 +190,7 @@ class MilkSale(models.Model):
     # Sale metrics
     quantity = models.DecimalField(_('quantity (liters)'), max_digits=15, decimal_places=2, validators=[MinValueValidator(0)])
     price_per_liter = models.DecimalField(_('price per liter'), max_digits=10, decimal_places=2, validators=[MinValueValidator(0)])
-    total_value = models.DecimalField(_('total value'), max_digits=20, decimal_places=2, validators=[MinValueValidator(0)], blank=True)
+    total_amount = models.DecimalField(_('total amount'), max_digits=20, decimal_places=2, validators=[MinValueValidator(0)], blank=True)
     
     # Quality metrics
     fat_percentage = models.DecimalField(_('fat percentage'), max_digits=5, decimal_places=2, validators=[MinValueValidator(0)], null=True, blank=True)
