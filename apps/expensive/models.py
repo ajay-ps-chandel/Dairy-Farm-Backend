@@ -188,7 +188,7 @@ class ExpenseBudget(models.Model):
     
     farm = models.ForeignKey('farms.Farm', on_delete=models.CASCADE, related_name='budgets', verbose_name=_('farm'))
     
-    category = models.ForeignKey(ExpenseCategory, on_delete=models.SET_NULL, related_name='budgets', verbose_name=_('category'))
+    category = models.ForeignKey(ExpenseCategory, on_delete=models.SET_NULL, related_name='budgets', verbose_name=_('category'), null=True)
     
     period = models.CharField(_('period'), max_length=20, choices=PERIOD_CHOICES, default='monthly')
     
