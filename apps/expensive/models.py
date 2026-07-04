@@ -127,3 +127,112 @@ class Expense(models.Model):
         self.total_amount = self.amount + self.tax_amount
         super().save(*args, **kwargs)
     
+
+class RecurringExpense(models.Model):
+    """
+    Model for recurring expenses.
+    """
+    
+    FREQUENCY_CHOICES = [
+        ('daily', _('Daily')),
+        ('weekly', _('Weekly')),
+        ('monthly', _('Monthly')),
+        ('quarterly', _('Quarterly')),
+        ('yearly', _('Yearly')),
+    ]
+    
+    title = models.CharField(_('title'), max_length=255)
+    description = models.TextField(_('description'), blank=True, null=True)
+    
+    farm = models.ForeignKey('farms.Farm', on_delete=models.CASCADE, related_name='recurring_expenses', verbose_name=_('farm'))
+    
+    category = models.ForeignKey(ExpenseCategory, on_delete=models.SET_NULL, related_name='recurring_expenses', verbose_name=_('category'), null=True, blank=True)
+    
+    amount = models.DecimalField(_('amount'), max_digits=12, decimal_places=2, validators=[MinValueValidator(0)])
+    
+    frequency = models.CharField(_('frequency'), max_length=20, choices=FREQUENCY_CHOICES, default='monthly')
+    
+    start_date = models.DateField(_('start date'))
+    end_date = models.DateField(_('end date'), null=True, blank=True)
+    
+    next_due_date = models.DateField(_('next due date'), null=True, blank=True)
+    
+    vendor_name = models.CharField(_('vendor name'), max_length=200, blank=True, null=True)
+    vendor_contact = models.CharField(_('vendor contact'), max_length=20, blank=True, null=True)
+    
+    is_active = models.BooleanField(_('is active'), default=True)
+    
+    created_by = models.ForeignKey('accounts.User', on_delete=models.CASCADE, related_name='created_recurring_expenses', verbose_name=_('created by'))
+    
+    created_at = models.DateTimeField(_('created at'), auto_now_add=True)
+    updated_at = models.DateTimeField(_('updated at'), auto_now=True)
+    
+    class Meta:
+        verbose_name = _('recurring expense')
+        verbose_name_plural = _('recurring expenses')
+        ordering = ['next_due_date']
+    
+    def __str__(self):
+        return f"{self.title} - {self.get_frequency_display()} - {self.amount}"
+
+
+class ExpenseBudget(models.Model):
+    """
+    Model for expense budgets.
+    """
+    PERIOD_CHOICES = [
+        ('monthly', _('Monthly')),
+        ('quarterly', _('Quarterly')),
+        ('yearly', _('Yearly')),
+    ]
+    
+    farm = models.ForeignKey('farms.Farm', on_delete=models.CASCADE, related_name='budgets', verbose_name=_('farm'))
+    
+    category = models.ForeignKey(ExpenseCategory, on_delete=models.SET_NULL, related_name='budgets', verbose_name=_('category'))
+    
+    period = models.CharField(_('period'), max_length=20, choices=PERIOD_CHOICES, default='monthly')
+    
+    period_start = models.DateField(_('period start'))
+    period_end = models.DateField(_('period end'))
+    
+    budget_amount = models.DecimalField(_('budget amount'), max_digits=12, decimal_places=2, validators=[MinValueValidator(0)])
+    
+    notes = models.TextField(_('notes'), blank=True, null=True)
+    
+    created_by = models.ForeignKey('accounts.User', on_delete=models.CASCADE, related_name='created_budgets', verbose_name=_('created by'))
+    
+    created_at = models.DateTimeField(_('created at'), auto_now_add=True)
+    updated_at = models.DateTimeField(_('updated at'), auto_now=True)
+    
+    class Meta:
+        verbose_name = _('expense budget')
+        verbose_name_plural = _('expense budgets')
+        ordering = ['-period_start']
+        unique_together = ['farm', 'category', 'period_start']
+    
+    def __str__(self):
+        return f"{self.farm.name} - {self.category.name} - {self.period_start}"
+    
+    @property
+    def spent_amount(self):
+        """Calculate spent amount for this budget period."""
+        from django.db.models import Sum
+        return Expense.objects.filter(
+            farm=self.farm,
+            category=self.category,
+            expense_date__gte=self.period_start,
+            expense_date__lte=self.period_end,
+            status='paid'
+        ).aggregate(total=Sum('total_amount'))['total'] or 0
+    
+    @property
+    def remaining_amount(self):
+        """Calculate remaining budget."""
+        return self.budget_amount - self.spent_amount
+    
+    @property
+    def utilization_percentage(self):
+        """Calculate budget utilization percentage."""
+        if self.budget_amount > 0:
+            return (self.spent_amount / self.budget_amount) * 100
+        return 0
