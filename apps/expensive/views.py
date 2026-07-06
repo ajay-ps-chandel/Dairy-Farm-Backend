@@ -38,3 +38,61 @@ class ExpenseCategoryDetailView(generics.RetrieveUpdateDestroyAPIView):
     queryset = ExpenseCategory.objects.all()
 
     
+class ExpenseListView(generics.ListAPIView):
+    """
+    API endpoint for listing expenses.
+    """
+    serializer_class = ExpenseListSerializer
+    permission_classes = [permissions.IsAuthenticated, IsFarmMember]
+    
+    def get_queryset(self):
+        user = self.request.user
+        
+        if user.is_owner:
+            farm_ids = user.owned_farms.filter(is_active=True).values_list('id', flat=True)
+        else:
+            farm_ids = user.farm_memberships.filter(
+                is_active=True, status='active'
+            ).values_list('farm_id', flat=True)
+        
+        queryset = Expense.objects.filter(farm_id__in=farm_ids)
+        
+        # Filter by farm
+        farm_id = self.request.query_params.get('farm')
+        if farm_id:
+            queryset = queryset.filter(farm_id=farm_id)
+        
+        # Filter by category
+        category = self.request.query_params.get('category')
+        if category:
+            queryset = queryset.filter(category_id=category)
+        
+        # Filter by status
+        status_param = self.request.query_params.get('status')
+        if status_param:
+            queryset = queryset.filter(status=status_param)
+        
+        # Filter by payment method
+        payment_method = self.request.query_params.get('payment_method')
+        if payment_method:
+            queryset = queryset.filter(payment_method=payment_method)
+        
+        # Filter by date range
+        date_from = self.request.query_params.get('date_from')
+        date_to = self.request.query_params.get('date_to')
+        if date_from:
+            queryset = queryset.filter(expense_date__gte=date_from)
+        if date_to:
+            queryset = queryset.filter(expense_date__lte=date_to)
+        
+        # Search
+        search = self.request.query_params.get('search')
+        if search:
+            queryset = queryset.filter(
+                Q(title__icontains=search) |
+                Q(vendor_name__icontains=search) |
+                Q(invoice_number__icontains=search)
+            )
+        
+        return queryset.select_related('category', 'farm', 'recorded_by').order_by('-expense_date', '-created_at')
+
