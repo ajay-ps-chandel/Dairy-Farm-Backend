@@ -96,3 +96,81 @@ class ExpenseListView(generics.ListAPIView):
         
         return queryset.select_related('category', 'farm', 'recorded_by').order_by('-expense_date', '-created_at')
 
+
+class ExpenseDetailView(generics.RetrieveAPIView):
+    """
+    API endpoint for retrieving an expense.
+    """
+    serializer_class = ExpenseDetailSerializer
+    permission_classes = [permissions.IsAuthenticated, IsFarmMember]
+    queryset = Expense.objects.all()
+    
+
+class ExpenseCreateView(generics.CreateAPIView):
+    """
+    API endpoint for creating an expense.
+    """
+    serializer_class = ExpenseCreateSerializer
+    permission_classes = [permissions.IsAuthenticated, IsOwner]
+
+
+class ExpenseUpdateView(generics.UpdateAPIView):
+    """
+    API endpoint for updating an expense.
+    """
+    serializer_class = ExpenseCreateSerializer
+    permission_classes = [permissions.IsAuthenticated, IsOwner]
+    queryset = Expense.objects.all()
+    
+
+class ExpenseDeleteView(generics.DestroyAPIView):
+    """
+    API endpoint for deleting an expense.
+    """
+    permission_classes = [permissions.IsAuthenticated, IsOwner]
+    queryset = Expense.objects.all()
+
+
+@api_view(['POST'])
+@permission_classes([permissions.IsAuthenticated, IsOwner])
+def approve_expense(request, pk):
+    """
+    API endpoint for approving an expense.
+    """
+    expense = get_object_or_404(Expense, pk=pk)
+    
+    expense.status = 'approved'
+    expense.approved_by = request.user
+    expense.approved_at = timezone.now()
+    expense.save()
+    
+    return Response({'message' : 'Expense approved successfully.'})
+
+
+@api_view(['POST'])
+@permission_classes([permissions.IsAuthenticated, IsOwner])
+def reject_expense(request, pk):
+    """
+    API endpoint for rejecting an expense.
+    """
+    expense = get_object_or_404(Expense, pk=pk)
+    
+    expense.status = 'rejected'
+    expense.save()
+    
+    return Response({'message': 'Expense rejected successfully.'})
+
+
+@api_view(['POST'])
+@permission_classes([permissions.IsAuthenticated, IsOwner])
+def mark_expense_paid(request, pk):
+    """
+    API endpoint for marking an expense as paid.
+    """
+    expense = get_object_or_404(Expense, pk=pk)
+    
+    expense.status = 'paid'
+    expense.save()
+    
+    return Response({'message': 'Expense marked as paid.'})
+
