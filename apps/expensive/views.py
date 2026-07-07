@@ -174,3 +174,45 @@ def mark_expense_paid(request, pk):
     
     return Response({'message': 'Expense marked as paid.'})
 
+
+class RecurringExpenseListView(generics.ListCreateAPIView):
+    """
+    API endpoint for listing and creating recurring expenses.
+    """
+    serializer_class = RecurringExpenseSerializer
+    permission_classes = [permissions.IsAuthenticated, IsFarmMember]
+    
+    def get_queryset(self):
+        user = self.request.user
+        
+        if user.is_owner:
+            farm_ids = user.owned_farms.filter(is_active=True).values_list('id', flat=True)
+        else:
+            farm_ids = user.farm_memberships.filter(
+                is_active=True, status='active'
+            ).values_list('farm_id', flat=True)
+        
+        queryset = RecurringExpense.objects.filter(farm_id__in=farm_ids)
+        
+        # Filter by farm
+        farm_id = self.request.query_params.get('farm')
+        if farm_id:
+            queryset = queryset.filter(farm_id=farm_id)
+        
+        # Filter by active status
+        is_active = self.request.query_params.get('is_active')
+        if is_active is not None:
+            queryset = queryset.filter(is_active=is_active.lower() == 'true')
+        
+        return queryset.select_related('category', 'farm').order_by('next_due_date')
+
+
+class RecurringExpenseDetailView(generics.RetrieveUpdateDestroyAPIView):
+    """
+    API endpoint for retrieving, updating and deleting recurring expenses.
+    """
+    serializer_class = RecurringExpenseSerializer
+    permission_classes = [permissions.IsAuthenticated, IsOwner]
+    queryset = RecurringExpense.objects.all()
+
+
