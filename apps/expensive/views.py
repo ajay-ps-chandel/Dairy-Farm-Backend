@@ -216,3 +216,48 @@ class RecurringExpenseDetailView(generics.RetrieveUpdateDestroyAPIView):
     queryset = RecurringExpense.objects.all()
 
 
+class ExpenseBudgetListView(generics.ListCreateAPIView):
+    """
+    API endpoint for listing and creating expense budgets.
+    """
+    serializer_class = ExpenseBudgetSerializer
+    permission_classes = [permissions.IsAuthenticated, IsFarmMember]
+    
+    def get_queryset(self):
+        user = self.request.user
+        
+        if user.is_owner:
+            farm_ids = user.owned_farms.filter(is_active=True).values_list('id', flat=True)
+        else:
+            farm_ids = user.farm_memberships.filter(
+                is_active=True, status='active'
+            ).values_list('farm_id', flat=True)
+        
+        queryset = ExpenseBudget.objects.filter(farm_id__in=farm_ids)
+        
+        # Filter by farm
+        farm_id = self.request.query_params.get('farm')
+        if farm_id:
+            queryset = queryset.filter(farm_id=farm_id)
+        
+        # Filter by category
+        category = self.request.query_params.get('category')
+        if category:
+            queryset = queryset.filter(category_id=category)
+        
+        # Filter by period
+        period = self.request.query_params.get('period')
+        if period:
+            queryset = queryset.filter(period=period)
+        
+        return queryset.select_related('category', 'farm').order_by('-period_start')
+
+
+class ExpenseBudgetDetailView(generics.RetrieveUpdateDestroyAPIView):
+    """
+    API endpoint for retrieving, updating and deleting expense budgets.
+    """
+    serializer_class = ExpenseBudgetSerializer
+    permission_classes = [permissions.IsAuthenticated, IsOwner]
+    queryset = ExpenseBudget.objects.all()
+
