@@ -369,3 +369,63 @@ def expense_stats(request):
     return Response(data)
 
 
+@api_view(['GET'])
+@permission_classes([permissions.IsAuthenticated])
+def budget_comparison(request):
+    """
+    API endpoint for budget vs actual comparison.
+    """
+    user = request.user
+    farm_id = request.query_params.get('farm')
+    period = request.query_params.get('period', 'monthly')
+    
+    # Get farms user has access to
+    if user.is_owner:
+        farm_ids = user.owned_farms.filter(is_active=True).values_list('id', flat=True)
+    else:
+        farm_ids = user.farm_memberships.filter(
+            is_active=True, status='active'
+        ).values_list('farm_id', flat=True)
+    
+    if farm_id:
+        farm_ids = [farm_id] if int(farm_id) in list(farm_ids) else []
+    
+    today = timezone.now().date()
+    
+    if period == 'monthly':
+        period_start = today.replace(day=1)
+    elif period == 'quarterly':
+        quarter = (today.month - 1) // 3
+        period_start = today.replace(month=quarter * 3 + 1, day=1)
+    else:  # yearly
+        period_start = today.replace(month=1, day=1)
+    
+    budgets = ExpenseBudget.objects.filter(
+        farm_id__in=farm_ids,
+        period=period,
+        period_start=period_start
+    )
+    
+    data = []
+    for budget in budgets:
+        utilization = budget.utilization_percentage
+        
+        if utilization < 75:
+            status = 'good'
+        elif utilization < 90:
+            status = 'warning'
+        else:
+            status = 'critical'
+        
+        data.append({
+            'budget_id': budget.id,
+            'category_name': budget.category.name,
+            'budget_amount': budget.budget_amount,
+            'spent_amount': budget.spent_amount,
+            'remaining_amount': budget.remaining_amount,
+            'utilization_percentage': round(utilization, 2),
+            'status': status
+        })
+    
+    return Response(data)
+
