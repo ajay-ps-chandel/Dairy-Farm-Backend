@@ -429,3 +429,22 @@ def budget_comparison(request):
     
     return Response(data)
 
+
+@api_view(['GET'])
+@permission_classes([permissions.IsAuthenticated])
+def get_expense_category_types(request):
+    """
+    API endpoint for getting expense category types.
+    """
+    types = [
+        {'value': 'operational', 'label': 'Operational'},
+        {'value': 'capital', 'label': 'Capital'},
+        {'value': 'maintenance', 'label': 'Maintenance'},
+        {'value': 'labor', 'label': 'Labor'},
+        {'value': 'feed', 'label': 'Feed'},
+        {'value': 'medical', 'label': 'Medical'},
+        {'value': 'utility', 'label': 'Utility'},
+        {'value': 'transport', 'label': 'Transport'},
+        {'value': 'other', 'label': 'Other'},
+    ]
+    return Response(types)
