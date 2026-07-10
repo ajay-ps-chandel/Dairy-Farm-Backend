@@ -261,3 +261,111 @@ class ExpenseBudgetDetailView(generics.RetrieveUpdateDestroyAPIView):
     permission_classes = [permissions.IsAuthenticated, IsOwner]
     queryset = ExpenseBudget.objects.all()
 
+
+@api_view(['GET'])
+@permission_classes([permissions.IsAuthenticated])
+def expense_stats(request):
+    """
+    API endpoint for getting expense statistics.
+    """
+    user = request.user
+    farm_id = request.query_params.get('farm')
+    
+    # Get farms user has access to
+    if user.is_owner:
+        farm_ids = user.owned_farms.filter(is_active=True).values_list('id', flat=True)
+    else:
+        farm_ids = user.farm_memberships.filter(
+            is_active=True, status='active'
+        ).values_list('farm_id', flat=True)
+    
+    if farm_id:
+        farm_ids = [farm_id] if int(farm_id) in list(farm_ids) else []
+    
+    today = timezone.now().date()
+    week_start = today - timedelta(days=today.weekday())
+    month_start = today.replace(day=1)
+    year_start = today.replace(month=1, day=1)
+    
+    # Today's expenses
+    today_expenses = Expense.objects.filter(
+        farm_id__in=farm_ids,
+        expense_date=today,
+        status='paid'
+    ).aggregate(total=Sum('total_amount'))['total'] or 0
+    
+    # This week's expenses
+    week_expenses = Expense.objects.filter(
+        farm_id__in=farm_ids,
+        expense_date__gte=week_start,
+        status='paid'
+    ).aggregate(total=Sum('total_amount'))['total'] or 0
+    
+    # This month's expenses
+    month_expenses = Expense.objects.filter(
+        farm_id__in=farm_ids,
+        expense_date__gte=month_start,
+        status='paid'
+    ).aggregate(total=Sum('total_amount'))['total'] or 0
+    
+    # This year's expenses
+    year_expenses = Expense.objects.filter(
+        farm_id__in=farm_ids,
+        expense_date__gte=year_start,
+        status='paid'
+    ).aggregate(total=Sum('total_amount'))['total'] or 0
+    
+    # Expenses by category
+    expenses_by_category = list(
+        Expense.objects.filter(
+            farm_id__in=farm_ids,
+            expense_date__gte=month_start,
+            status='paid'
+        ).values('category__name').annotate(
+            total=Sum('total_amount')
+        ).order_by('-total')
+    )
+    
+    # Expenses by payment method
+    expenses_by_payment_method = list(
+        Expense.objects.filter(
+            farm_id__in=farm_ids,
+            expense_date__gte=month_start,
+            status='paid'
+        ).values('payment_method').annotate(
+            total=Sum('total_amount')
+        ).order_by('-total')
+    )
+    
+    # Pending expenses
+    pending_expenses = Expense.objects.filter(
+        farm_id__in=farm_ids,
+        status__in=['pending', 'approved']
+    ).aggregate(total=Sum('total_amount'))['total'] or 0
+    
+    # Top vendors
+    top_vendors = list(
+        Expense.objects.filter(
+            farm_id__in=farm_ids,
+            expense_date__gte=month_start,
+            status='paid'
+        ).values('vendor_name').annotate(
+            total=Sum('total_amount'),
+            count=Count('id')
+        ).order_by('-total')[:10]
+    )
+    
+    data = {
+        'total_expenses_today': round(today_expenses, 2),
+        'total_expenses_this_week': round(week_expenses, 2),
+        'total_expenses_this_month': round(month_expenses, 2),
+        'total_expenses_this_year': round(year_expenses, 2),
+        'expenses_by_category': expenses_by_category,
+        'expenses_by_payment_method': expenses_by_payment_method,
+        'pending_expenses': round(pending_expenses, 2),
+        'top_vendors': top_vendors,
+    }
+    
+    return Response(data)
+
+
