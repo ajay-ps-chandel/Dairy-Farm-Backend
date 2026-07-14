@@ -1,6 +1,7 @@
 from django.contrib import admin
 from .models import (
-    InventoryCategory, InventoryItem, StockTransaction
+    InventoryCategory, InventoryItem, StockTransaction,
+    FeedFormula, FeedFormulaIngredient
 )
 
 
@@ -81,4 +82,37 @@ class StockTransactionAdmin(admin.ModelAdmin):
     readonly_fields = ['total_cost', 'balance_after']
 
 
-      
+class FeedFormulaIngredientInline(admin.TabularInline):
+    """
+    Inline admin for FeedFormulaIngredient.
+    """
+    model = FeedFormulaIngredient
+    extra = 1
+
+
+@admin.register(FeedFormula)
+class FeedFormulaAdmin(admin.ModelAdmin):
+    """
+    Admin configuration for FeedFormula model.
+    """
+    
+    list_display = [
+        'name', 'farm', 'target_animals',
+        'is_active', 'created_at'
+    ]
+    list_filter = ['is_active', 'farm']
+    search_fields = ['name', 'description']
+    list_select_related = ['farm']
+    inlines = [FeedFormulaIngredientInline]
+
+
+@admin.register(FeedFormulaIngredient)
+class FeedFormulaIngredientAdmin(admin.ModelAdmin):
+    """
+    Admin configuration for FeedFormulaIngredient model.
+    """
+    
+    list_display = ['formula', 'ingredient', 'quantity']
+    list_select_related = ['formula', 'ingredient']
+
+
