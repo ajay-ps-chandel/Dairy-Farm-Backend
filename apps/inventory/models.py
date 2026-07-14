@@ -198,4 +198,60 @@ class StockTransaction(models.Model):
         super().save(*args, **kwargs)
 
 
- 
+class FeedFormula(models.Model):
+    """
+    Model for feed formulas/recipes.
+    """
+    name = models.CharField(_('name'), max_length=200)
+    description = models.TextField(_('description'), blank=True)
+    
+    farm = models.ForeignKey('farms.Farm', on_delete=models.CASCADE, related_name='feed_formulas', verbose_name=_('farm'))
+    
+    # Target animal group
+    target_animal = models.CharField(_('target animals'), max_length=200, blank=True)
+    
+    # Ingredients
+    preparation_instructions = models.TextField(_('preparation instructions'), blank=True)
+    feeding_instructions = models.TextField(_('feeding instructions'), blank=True)
+    
+    is_active = models.BooleanField(_('is active'), default=True)
+    
+    created_by = models.ForeignKey('accounts.User', on_delete=models.SET_NULL, null=True, blank=True, related_name='created_feed_formulas', verbose_name=_('created by'))
+    
+    created_at = models.DateTimeField(_('created at'), auto_now_add=True)
+    updated_at = models.DateTimeField(_('updated at'), auto_now=True)
+    
+    class Meta:
+        verbose_name = _('feed formula')
+        verbose_name_plural = _('feed formulas')
+        ordering = ['-created_at']
+        
+    def __str__(self):
+        return self.name
+    
+    @property
+    def total_quantity(self):
+        """Calculate total quantity of ingredients."""
+        return self.ingredients.aggregate(
+            total=models.Sum('quantity')
+        )['total'] or 0
+        
+
+class FeedFormulaIngredient(models.Model):
+    """
+    Model for ingredients in a feed formula.
+    """
+    formula = models.ForeignKey(FeedFormula, on_delete=models.CASCADE, related_name='ingredients', verbose_name=_('formula'))
+    ingredient = models.ForeignKey(InventoryItem, on_delete=models.CASCADE, related_name='used_in_formulas', verbose_name=_('ingredient'), limit_choices_to={'item_type__in': ['feed', 'fodder', 'mineral']})
+    quantity = models.DecimalField(_('quantity'), max_digits=10, decimal_places=2, validators=[MinValueValidator(0)])
+    notes = models.TextField(_('notes'), blank=True)
+    
+    class Meta:
+        verbose_name = _('feed formula ingredient')
+        verbose_name_plural = _('feed formula ingredients')
+        ordering = ['formula', 'ingredient']
+        
+    def __str__(self):
+        return f"{self.formula.name} - {self.ingredient.name} ({self.quantity})"
+    
+    
